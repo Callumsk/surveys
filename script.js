@@ -1,181 +1,23 @@
-// ECO4 Survey Management System with Server Integration
+// ECO4 Survey Management System - Simplified Version
 class SurveyManager {
     constructor() {
         this.surveys = [];
         this.files = {};
         this.currentSurveyId = null;
         this.confirmCallback = null;
-        this.ws = null;
-        this.isConnected = false;
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
         this.init();
     }
 
     init() {
         console.log('Initializing SurveyManager...');
+        this.loadLocalData();
         this.setupEventListeners();
-        this.connectWebSocket();
         this.renderSurveys();
         this.updateStats();
         console.log('SurveyManager initialized successfully!');
     }
 
-    // WebSocket Connection Management
-    connectWebSocket() {
-        try {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}`;
-            
-            console.log('Connecting to WebSocket:', wsUrl);
-            this.ws = new WebSocket(wsUrl);
-            
-            this.ws.onopen = () => {
-                console.log('WebSocket connected successfully');
-                this.isConnected = true;
-                this.reconnectAttempts = 0;
-                this.updateConnectionStatus(true);
-            };
-
-            this.ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    this.handleWebSocketMessage(data);
-                } catch (error) {
-                    console.error('Error parsing WebSocket message:', error);
-                }
-            };
-
-            this.ws.onclose = () => {
-                console.log('WebSocket disconnected');
-                this.isConnected = false;
-                this.updateConnectionStatus(false);
-                this.attemptReconnect();
-            };
-
-            this.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                this.isConnected = false;
-                this.updateConnectionStatus(false);
-            };
-        } catch (error) {
-            console.log('WebSocket not available, using local storage:', error);
-            this.loadLocalData();
-        }
-    }
-
-    attemptReconnect() {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++;
-            console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-            
-            setTimeout(() => {
-                this.connectWebSocket();
-            }, 2000 * this.reconnectAttempts);
-        } else {
-            console.error('Max reconnection attempts reached, using local storage');
-            this.loadLocalData();
-        }
-    }
-
-    updateConnectionStatus(connected) {
-        const statusElement = document.getElementById('connectionStatus');
-        if (!statusElement) {
-            // Create status element if it doesn't exist
-            const header = document.querySelector('.header');
-            const statusDiv = document.createElement('div');
-            statusDiv.id = 'connectionStatus';
-            statusDiv.style.cssText = `
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 14px;
-                font-weight: 500;
-            `;
-            header.appendChild(statusDiv);
-        }
-
-        const statusElement = document.getElementById('connectionStatus');
-        if (connected) {
-            statusElement.innerHTML = `
-                <div style="width: 8px; height: 8px; background: #27ae60; border-radius: 50%;"></div>
-                <span style="color: #27ae60;">Connected</span>
-            `;
-        } else {
-            statusElement.innerHTML = `
-                <div style="width: 8px; height: 8px; background: #e74c3c; border-radius: 50%;"></div>
-                <span style="color: #e74c3c;">Disconnected</span>
-            `;
-        }
-    }
-
-    handleWebSocketMessage(data) {
-        console.log('Received WebSocket message:', data.type);
-        
-        switch (data.type) {
-            case 'initial':
-                this.surveys = data.data.surveys || [];
-                this.files = data.data.files || {};
-                this.renderSurveys();
-                this.updateStats();
-                console.log('Loaded initial data:', this.surveys.length, 'surveys');
-                break;
-                
-            case 'survey_added':
-                this.surveys.push(data.survey);
-                this.renderSurveys();
-                this.updateStats();
-                this.showNotification('Survey added successfully');
-                break;
-                
-            case 'survey_updated':
-                const surveyIndex = this.surveys.findIndex(s => s.id === data.survey.id);
-                if (surveyIndex !== -1) {
-                    this.surveys[surveyIndex] = data.survey;
-                    this.renderSurveys();
-                    this.updateStats();
-                    this.showNotification('Survey updated successfully');
-                }
-                break;
-                
-            case 'survey_deleted':
-                this.surveys = this.surveys.filter(s => s.id !== data.surveyId);
-                if (this.files[data.surveyId]) {
-                    delete this.files[data.surveyId];
-                }
-                this.renderSurveys();
-                this.updateStats();
-                this.showNotification('Survey deleted successfully');
-                break;
-                
-            case 'file_added':
-                if (!this.files[data.file.surveyId]) {
-                    this.files[data.file.surveyId] = [];
-                }
-                this.files[data.file.surveyId].push(data.file);
-                this.renderSurveys();
-                this.updateStats();
-                if (this.currentSurveyId === data.file.surveyId) {
-                    this.updateCurrentFilesList();
-                }
-                this.showNotification('File uploaded successfully');
-                break;
-                
-            case 'file_deleted':
-                if (this.files[data.surveyId]) {
-                    this.files[data.surveyId] = this.files[data.surveyId].filter(f => f.id !== data.fileId);
-                    this.renderSurveys();
-                    this.updateStats();
-                    if (this.currentSurveyId === data.surveyId) {
-                        this.updateCurrentFilesList();
-                    }
-                    this.showNotification('File deleted successfully');
-                }
-                break;
-        }
-    }
-
-    // Load data from localStorage as fallback
+    // Load data from localStorage
     loadLocalData() {
         try {
             const savedSurveys = localStorage.getItem('eco4_surveys');
@@ -194,7 +36,7 @@ class SurveyManager {
         }
     }
 
-    // Save data to localStorage as fallback
+    // Save data to localStorage
     saveLocalData() {
         try {
             localStorage.setItem('eco4_surveys', JSON.stringify(this.surveys));
@@ -205,79 +47,6 @@ class SurveyManager {
         }
     }
 
-    // Send WebSocket message
-    sendWebSocketMessage(type, data) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type, ...data }));
-            console.log('Sent WebSocket message:', type);
-        } else {
-            console.log('WebSocket not connected, using local storage');
-            this.handleLocalAction(type, data);
-        }
-    }
-
-    // Handle actions locally when WebSocket is not available
-    handleLocalAction(type, data) {
-        switch (type) {
-            case 'add_survey':
-                this.surveys.push(data.survey);
-                this.saveLocalData();
-                this.renderSurveys();
-                this.updateStats();
-                this.showNotification('Survey added successfully');
-                break;
-                
-            case 'update_survey':
-                const surveyIndex = this.surveys.findIndex(s => s.id === data.survey.id);
-                if (surveyIndex !== -1) {
-                    this.surveys[surveyIndex] = data.survey;
-                    this.saveLocalData();
-                    this.renderSurveys();
-                    this.updateStats();
-                    this.showNotification('Survey updated successfully');
-                }
-                break;
-                
-            case 'delete_survey':
-                this.surveys = this.surveys.filter(s => s.id !== data.surveyId);
-                if (this.files[data.surveyId]) {
-                    delete this.files[data.surveyId];
-                }
-                this.saveLocalData();
-                this.renderSurveys();
-                this.updateStats();
-                this.showNotification('Survey deleted successfully');
-                break;
-                
-            case 'add_file':
-                if (!this.files[data.file.surveyId]) {
-                    this.files[data.file.surveyId] = [];
-                }
-                this.files[data.file.surveyId].push(data.file);
-                this.saveLocalData();
-                this.renderSurveys();
-                this.updateStats();
-                if (this.currentSurveyId === data.file.surveyId) {
-                    this.updateCurrentFilesList();
-                }
-                this.showNotification('File uploaded successfully');
-                break;
-                
-            case 'delete_file':
-                if (this.files[data.surveyId]) {
-                    this.files[data.surveyId] = this.files[data.surveyId].filter(f => f.id !== data.fileId);
-                    this.saveLocalData();
-                    this.renderSurveys();
-                    this.updateStats();
-                    if (this.currentSurveyId === data.surveyId) {
-                        this.updateCurrentFilesList();
-                    }
-                    this.showNotification('File deleted successfully');
-                }
-                break;
-        }
-    }
-
     // Event Listeners
     setupEventListeners() {
         console.log('Setting up event listeners...');
@@ -285,17 +54,19 @@ class SurveyManager {
         // Add Survey Button
         const addSurveyBtn = document.getElementById('addSurveyBtn');
         if (addSurveyBtn) {
+            console.log('Found add survey button, adding event listener');
             addSurveyBtn.addEventListener('click', () => {
-                console.log('Add survey button clicked');
+                console.log('Add survey button clicked!');
                 this.openSurveyModal();
             });
         } else {
-            console.error('Add survey button not found');
+            console.error('Add survey button not found!');
         }
 
         // Modal Close Buttons
         document.querySelectorAll('.close').forEach(closeBtn => {
             closeBtn.addEventListener('click', (e) => {
+                console.log('Close button clicked');
                 this.closeModal(e.target.closest('.modal'));
             });
         });
@@ -303,17 +74,21 @@ class SurveyManager {
         // Survey Form
         const surveyForm = document.getElementById('surveyForm');
         if (surveyForm) {
+            console.log('Found survey form, adding event listener');
             surveyForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 console.log('Survey form submitted');
                 this.saveSurvey();
             });
+        } else {
+            console.error('Survey form not found!');
         }
 
         // Cancel Buttons
         const cancelBtn = document.getElementById('cancelBtn');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
+                console.log('Cancel button clicked');
                 this.closeSurveyModal();
             });
         }
@@ -423,8 +198,12 @@ class SurveyManager {
                 surveyId: this.currentSurveyId
             };
 
-            // Send to server via WebSocket
-            this.sendWebSocketMessage('add_file', { file: fileData });
+            // Add to files object
+            if (!this.files[this.currentSurveyId]) {
+                this.files[this.currentSurveyId] = [];
+            }
+            this.files[this.currentSurveyId].push(fileData);
+            this.saveLocalData();
 
             // Display uploaded file
             const fileElement = this.createFileElement(fileData);
@@ -434,6 +213,9 @@ class SurveyManager {
         });
 
         this.updateCurrentFilesList();
+        this.renderSurveys();
+        this.updateStats();
+        this.showNotification('File uploaded successfully');
     }
 
     createFileElement(fileData) {
@@ -454,10 +236,12 @@ class SurveyManager {
 
     removeFile(fileId) {
         if (this.currentSurveyId && this.files[this.currentSurveyId]) {
-            this.sendWebSocketMessage('delete_file', {
-                surveyId: this.currentSurveyId,
-                fileId: fileId
-            });
+            this.files[this.currentSurveyId] = this.files[this.currentSurveyId].filter(f => f.id !== fileId);
+            this.saveLocalData();
+            this.renderSurveys();
+            this.updateStats();
+            this.updateCurrentFilesList();
+            this.showNotification('File deleted successfully');
         }
     }
 
@@ -515,6 +299,9 @@ class SurveyManager {
 
         if (modal) {
             modal.style.display = 'block';
+            console.log('Modal displayed');
+        } else {
+            console.error('Modal not found!');
         }
     }
 
@@ -525,6 +312,7 @@ class SurveyManager {
         if (modal) modal.style.display = 'none';
         if (form) form.reset();
         this.currentSurveyId = null;
+        console.log('Survey modal closed');
     }
 
     populateForm(survey) {
@@ -556,15 +344,19 @@ class SurveyManager {
             if (index !== -1) {
                 formData.id = this.currentSurveyId;
                 formData.createdDate = this.surveys[index].createdDate;
-                this.sendWebSocketMessage('update_survey', { survey: formData });
+                this.surveys[index] = formData;
             }
         } else {
             // Add new survey
             formData.id = this.generateId();
             formData.createdDate = new Date().toISOString();
-            this.sendWebSocketMessage('add_survey', { survey: formData });
+            this.surveys.push(formData);
         }
 
+        this.saveLocalData();
+        this.renderSurveys();
+        this.updateStats();
+        this.showNotification(this.currentSurveyId ? 'Survey updated successfully' : 'Survey added successfully');
         this.closeSurveyModal();
     }
 
@@ -572,7 +364,14 @@ class SurveyManager {
         this.showConfirmModal(
             'Are you sure you want to delete this survey? This action cannot be undone.',
             () => {
-                this.sendWebSocketMessage('delete_survey', { surveyId: surveyId });
+                this.surveys = this.surveys.filter(s => s.id !== surveyId);
+                if (this.files[surveyId]) {
+                    delete this.files[surveyId];
+                }
+                this.saveLocalData();
+                this.renderSurveys();
+                this.updateStats();
+                this.showNotification('Survey deleted successfully');
                 this.closeConfirmModal();
             }
         );
@@ -583,7 +382,10 @@ class SurveyManager {
         if (survey) {
             survey.status = newStatus;
             survey.lastUpdated = new Date().toISOString();
-            this.sendWebSocketMessage('update_survey', { survey: survey });
+            this.saveLocalData();
+            this.renderSurveys();
+            this.updateStats();
+            this.showNotification('Status updated successfully');
         }
     }
 

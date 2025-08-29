@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - ECO4 Survey Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: red;
+        }
+        #debugOutput {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECO4 Survey Management - Debug</h1>
+        
+        <div>
+            <button id="addSurveyBtn" class="btn btn-primary">Add New Survey</button>
+            <button id="testBtn" class="btn btn-primary">Test Button</button>
+            <button id="clearLogs" class="btn btn-primary">Clear Logs</button>
+        </div>
+        
+        <div id="debugOutput"></div>
+    </div>
+
+    <!-- Test Modal -->
+    <div id="surveyModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add New Survey</h2>
+            <form id="surveyForm">
+                <div style="margin: 10px 0;">
+                    <label>Survey Title:</label>
+                    <input type="text" id="surveyTitle" required style="width: 100%; padding: 5px;">
+                </div>
+                <div style="margin: 10px 0;">
+                    <label>Customer Name:</label>
+                    <input type="text" id="customerName" required style="width: 100%; padding: 5px;">
+                </div>
+                <div style="margin: 10px 0;">
+                    <button type="submit" class="btn btn-primary">Save Survey</button>
+                    <button type="button" class="btn btn-primary" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('debugOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+
+        function clearLogs() {
+            document.getElementById('debugOutput').textContent = '';
+        }
+
+        log('Debug script starting...');
+        
+        // Test basic functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            log('DOM loaded');
+            
+            // Test button
+            const testBtn = document.getElementById('testBtn');
+            if (testBtn) {
+                testBtn.addEventListener('click', function() {
+                    log('Test button clicked!');
+                });
+            } else {
+                log('ERROR: Test button not found');
+            }
+            
+            // Add survey button
+            const addBtn = document.getElementById('addSurveyBtn');
+            if (addBtn) {
+                log('Add survey button found');
+                addBtn.addEventListener('click', function() {
+                    log('Add survey button clicked!');
+                    document.getElementById('surveyModal').style.display = 'block';
+                });
+            } else {
+                log('ERROR: Add survey button not found');
+            }
+            
+            // Close modal
+            const closeBtn = document.querySelector('.close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    log('Close button clicked');
+                    document.getElementById('surveyModal').style.display = 'none';
+                });
+            } else {
+                log('ERROR: Close button not found');
+            }
+
+            // Clear logs button
+            const clearBtn = document.getElementById('clearLogs');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearLogs);
+            }
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(e) {
+                const modal = document.getElementById('surveyModal');
+                if (e.target === modal) {
+                    log('Modal background clicked');
+                    modal.style.display = 'none';
+                }
+            });
+
+            // Form submission
+            const surveyForm = document.getElementById('surveyForm');
+            if (surveyForm) {
+                surveyForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    log('Survey form submitted');
+                    const title = document.getElementById('surveyTitle').value;
+                    const name = document.getElementById('customerName').value;
+                    log(`Survey data: Title="${title}", Name="${name}"`);
+                    document.getElementById('surveyModal').style.display = 'none';
+                });
+            } else {
+                log('ERROR: Survey form not found');
+            }
+        });
+        
+        function closeModal() {
+            log('closeModal function called');
+            document.getElementById('surveyModal').style.display = 'none';
+        }
+        
+        log('Debug script loaded');
+    </script>
+</body>
+</html>
