@@ -1,0 +1,38 @@
+{
+  "name": "eco4-survey-management",
+  "version": "1.0.0",
+  "description": "A modern web application for managing ECO4 grant surveys with real-time data synchronization and file management",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'Open index.html in your web browser to run the application'",
+    "serve": "echo 'For local development, you can use any static file server like: python -m http.server 8000'"
+  },
+  "keywords": [
+    "eco4",
+    "survey",
+    "management",
+    "grant",
+    "energy",
+    "web-app",
+    "localStorage",
+    "real-time"
+  ],
+  "author": "ECO4 Survey Management System",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/eco4-survey-management.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/eco4-survey-management/issues"
+  },
+  "homepage": "https://github.com/your-username/eco4-survey-management#readme",
+  "devDependencies": {},
+  "dependencies": {},
+  "browserslist": [
+    "Chrome >= 60",
+    "Firefox >= 55",
+    "Safari >= 12",
+    "Edge >= 79"
+  ]
+}

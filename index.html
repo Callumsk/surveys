@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECO4 Survey Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-clipboard-list"></i> ECO4 Survey Management System</h1>
+            <button id="addSurveyBtn" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add New Survey
+            </button>
+        </header>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <i class="fas fa-list"></i>
+                <h3 id="totalSurveys">0</h3>
+                <p>Total Surveys</p>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-clock"></i>
+                <h3 id="pendingSurveys">0</h3>
+                <p>Pending</p>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-check-circle"></i>
+                <h3 id="completedSurveys">0</h3>
+                <p>Completed</p>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-file-alt"></i>
+                <h3 id="totalFiles">0</h3>
+                <p>Total Files</p>
+            </div>
+        </div>
+
+        <div class="filters">
+            <select id="statusFilter" class="filter-select">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Search surveys..." class="search-input">
+        </div>
+
+        <div class="surveys-container" id="surveysContainer">
+            <!-- Surveys will be dynamically loaded here -->
+        </div>
+    </div>
+
+    <!-- Add/Edit Survey Modal -->
+    <div id="surveyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Survey</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="surveyForm">
+                <div class="form-group">
+                    <label for="surveyTitle">Survey Title *</label>
+                    <input type="text" id="surveyTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="customerName">Customer Name *</label>
+                    <input type="text" id="customerName" required>
+                </div>
+                <div class="form-group">
+                    <label for="customerAddress">Customer Address *</label>
+                    <textarea id="customerAddress" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="customerPhone">Customer Phone</label>
+                    <input type="tel" id="customerPhone">
+                </div>
+                <div class="form-group">
+                    <label for="customerEmail">Customer Email</label>
+                    <input type="email" id="customerEmail">
+                </div>
+                <div class="form-group">
+                    <label for="surveyStatus">Status *</label>
+                    <select id="surveyStatus" required>
+                        <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="surveyNotes">Notes</label>
+                    <textarea id="surveyNotes"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Survey</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div id="fileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload Files for Survey</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="file-upload-container">
+                <div class="current-files">
+                    <h3>Current Files</h3>
+                    <div id="currentFilesList"></div>
+                </div>
+                <div class="upload-section">
+                    <h3>Add New Files</h3>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag and drop files here or click to browse</p>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                    </div>
+                    <div id="uploadedFiles"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="closeFileModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirm Action</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage"></p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancelConfirm">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmAction">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
