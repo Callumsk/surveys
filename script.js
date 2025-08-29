@@ -1,53 +1,241 @@
-// ECO4 Survey Management System
+// ECO4 Survey Management System with Real-time WebSocket Support
 class SurveyManager {
     constructor() {
         this.surveys = [];
         this.currentSurveyId = null;
         this.currentFiles = [];
+        this.ws = null;
+        this.isConnected = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
         this.init();
     }
 
     init() {
-        this.loadData();
+        this.connectWebSocket();
         this.setupEventListeners();
         this.renderSurveys();
         this.updateStats();
-        this.setupStorageListener();
     }
 
-    // Data Management
-    loadData() {
-        const savedSurveys = localStorage.getItem('eco4_surveys');
-        const savedFiles = localStorage.getItem('eco4_files');
+    // WebSocket Connection Management
+    connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
         
-        this.surveys = savedSurveys ? JSON.parse(savedSurveys) : [];
-        this.files = savedFiles ? JSON.parse(savedFiles) : {};
-    }
-
-    saveData() {
-        localStorage.setItem('eco4_surveys', JSON.stringify(this.surveys));
-        localStorage.setItem('eco4_files', JSON.stringify(this.files));
+        this.ws = new WebSocket(wsUrl);
         
-        // Trigger custom event for real-time updates
-        window.dispatchEvent(new CustomEvent('dataUpdated', {
-            detail: { surveys: this.surveys, files: this.files }
-        }));
+        this.ws.onopen = () => {
+            console.log('WebSocket connected');
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
+            this.updateConnectionStatus(true);
+        };
+
+        this.ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                this.handleWebSocketMessage(data);
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+            }
+        };
+
+        this.ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            this.isConnected = false;
+            this.updateConnectionStatus(false);
+            this.attemptReconnect();
+        };
+
+        this.ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            this.isConnected = false;
+            this.updateConnectionStatus(false);
+        };
     }
 
-    setupStorageListener() {
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'eco4_surveys' || e.key === 'eco4_files') {
-                this.loadData();
+    attemptReconnect() {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+            
+            setTimeout(() => {
+                this.connectWebSocket();
+            }, 2000 * this.reconnectAttempts); // Exponential backoff
+        } else {
+            console.error('Max reconnection attempts reached');
+            this.showConnectionError();
+        }
+    }
+
+    updateConnectionStatus(connected) {
+        const statusElement = document.getElementById('connectionStatus');
+        if (!statusElement) {
+            // Create status element if it doesn't exist
+            const header = document.querySelector('.header');
+            const statusDiv = document.createElement('div');
+            statusDiv.id = 'connectionStatus';
+            statusDiv.style.cssText = `
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 14px;
+                font-weight: 500;
+            `;
+            header.appendChild(statusDiv);
+        }
+
+        const statusElement = document.getElementById('connectionStatus');
+        if (connected) {
+            statusElement.innerHTML = `
+                <div style="width: 8px; height: 8px; background: #27ae60; border-radius: 50%;"></div>
+                <span style="color: #27ae60;">Connected</span>
+            `;
+        } else {
+            statusElement.innerHTML = `
+                <div style="width: 8px; height: 8px; background: #e74c3c; border-radius: 50%;"></div>
+                <span style="color: #e74c3c;">Disconnected</span>
+            `;
+        }
+    }
+
+    showConnectionError() {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        errorDiv.innerHTML = `
+            <strong>Connection Error</strong><br>
+            Unable to connect to server. Please refresh the page.
+        `;
+        document.body.appendChild(errorDiv);
+        
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 5000);
+    }
+
+    handleWebSocketMessage(data) {
+        switch (data.type) {
+            case 'initial':
+                this.surveys = data.data.surveys || [];
+                this.files = data.data.files || {};
                 this.renderSurveys();
                 this.updateStats();
-            }
-        });
+                break;
+                
+            case 'surveys_updated':
+                this.surveys = data.surveys;
+                this.renderSurveys();
+                this.updateStats();
+                break;
+                
+            case 'files_updated':
+                this.files = data.files;
+                this.renderSurveys();
+                this.updateStats();
+                break;
+                
+            case 'survey_added':
+                this.surveys.push(data.survey);
+                this.renderSurveys();
+                this.updateStats();
+                this.showNotification('Survey added successfully');
+                break;
+                
+            case 'survey_updated':
+                const surveyIndex = this.surveys.findIndex(s => s.id === data.survey.id);
+                if (surveyIndex !== -1) {
+                    this.surveys[surveyIndex] = data.survey;
+                    this.renderSurveys();
+                    this.updateStats();
+                    this.showNotification('Survey updated successfully');
+                }
+                break;
+                
+            case 'survey_deleted':
+                this.surveys = this.surveys.filter(s => s.id !== data.surveyId);
+                if (this.files[data.surveyId]) {
+                    delete this.files[data.surveyId];
+                }
+                this.renderSurveys();
+                this.updateStats();
+                this.showNotification('Survey deleted successfully');
+                break;
+                
+            case 'file_added':
+                if (!this.files[data.file.surveyId]) {
+                    this.files[data.file.surveyId] = [];
+                }
+                this.files[data.file.surveyId].push(data.file);
+                this.renderSurveys();
+                this.updateStats();
+                if (this.currentSurveyId === data.file.surveyId) {
+                    this.updateCurrentFilesList();
+                }
+                this.showNotification('File uploaded successfully');
+                break;
+                
+            case 'file_deleted':
+                if (this.files[data.surveyId]) {
+                    this.files[data.surveyId] = this.files[data.surveyId].filter(f => f.id !== data.fileId);
+                    this.renderSurveys();
+                    this.updateStats();
+                    if (this.currentSurveyId === data.surveyId) {
+                        this.updateCurrentFilesList();
+                    }
+                    this.showNotification('File deleted successfully');
+                }
+                break;
+        }
+    }
 
-        window.addEventListener('dataUpdated', () => {
-            this.loadData();
-            this.renderSurveys();
-            this.updateStats();
-        });
+    showNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    // Send WebSocket message
+    sendWebSocketMessage(type, data) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type, ...data }));
+        } else {
+            console.error('WebSocket is not connected');
+            this.showConnectionError();
+        }
     }
 
     // Event Listeners
@@ -157,18 +345,14 @@ class SurveyManager {
                 surveyId: this.currentSurveyId
             };
 
-            // Store file data
-            if (!this.files[this.currentSurveyId]) {
-                this.files[this.currentSurveyId] = [];
-            }
-            this.files[this.currentSurveyId].push(fileData);
+            // Send to server via WebSocket
+            this.sendWebSocketMessage('add_file', { file: fileData });
 
             // Display uploaded file
             const fileElement = this.createFileElement(fileData);
             uploadedFiles.appendChild(fileElement);
         });
 
-        this.saveData();
         this.updateCurrentFilesList();
     }
 
@@ -190,11 +374,10 @@ class SurveyManager {
 
     removeFile(fileId) {
         if (this.currentSurveyId && this.files[this.currentSurveyId]) {
-            this.files[this.currentSurveyId] = this.files[this.currentSurveyId].filter(
-                file => file.id !== fileId
-            );
-            this.saveData();
-            this.updateCurrentFilesList();
+            this.sendWebSocketMessage('delete_file', {
+                surveyId: this.currentSurveyId,
+                fileId: fileId
+            });
         }
     }
 
@@ -282,16 +465,17 @@ class SurveyManager {
             // Update existing survey
             const index = this.surveys.findIndex(s => s.id === this.currentSurveyId);
             if (index !== -1) {
-                this.surveys[index] = { ...this.surveys[index], ...formData };
+                formData.id = this.currentSurveyId;
+                formData.createdDate = this.surveys[index].createdDate;
+                this.sendWebSocketMessage('update_survey', { survey: formData });
             }
         } else {
             // Add new survey
             formData.id = this.generateId();
             formData.createdDate = new Date().toISOString();
-            this.surveys.push(formData);
+            this.sendWebSocketMessage('add_survey', { survey: formData });
         }
 
-        this.saveData();
         this.closeSurveyModal();
     }
 
@@ -299,9 +483,7 @@ class SurveyManager {
         this.showConfirmModal(
             'Are you sure you want to delete this survey? This action cannot be undone.',
             () => {
-                this.surveys = this.surveys.filter(s => s.id !== surveyId);
-                delete this.files[surveyId];
-                this.saveData();
+                this.sendWebSocketMessage('delete_survey', { surveyId: surveyId });
                 this.closeConfirmModal();
             }
         );
@@ -312,7 +494,7 @@ class SurveyManager {
         if (survey) {
             survey.status = newStatus;
             survey.lastUpdated = new Date().toISOString();
-            this.saveData();
+            this.sendWebSocketMessage('update_survey', { survey: survey });
         }
     }
 
@@ -501,50 +683,32 @@ class SurveyManager {
     }
 }
 
+// Add CSS animations for notifications
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
 // Initialize the application
 const surveyManager = new SurveyManager();
-
-// Add some sample data for demonstration
-if (surveyManager.surveys.length === 0) {
-    const sampleSurveys = [
-        {
-            id: '1',
-            title: 'ECO4 Home Energy Assessment',
-            customerName: 'John Smith',
-            customerAddress: '123 Main Street, London, SW1A 1AA',
-            customerPhone: '020 7123 4567',
-            customerEmail: 'john.smith@email.com',
-            status: 'pending',
-            notes: 'Initial assessment required for ECO4 grant eligibility',
-            createdDate: new Date(Date.now() - 86400000).toISOString(),
-            lastUpdated: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-            id: '2',
-            title: 'Solar Panel Installation Survey',
-            customerName: 'Sarah Johnson',
-            customerAddress: '456 Oak Avenue, Manchester, M1 1AA',
-            customerPhone: '0161 123 4567',
-            customerEmail: 'sarah.johnson@email.com',
-            status: 'in-progress',
-            notes: 'Roof assessment completed, awaiting structural survey',
-            createdDate: new Date(Date.now() - 172800000).toISOString(),
-            lastUpdated: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-            id: '3',
-            title: 'Insulation Upgrade Project',
-            customerName: 'Michael Brown',
-            customerAddress: '789 Pine Road, Birmingham, B1 1AA',
-            customerPhone: '0121 123 4567',
-            customerEmail: 'michael.brown@email.com',
-            status: 'completed',
-            notes: 'All work completed successfully. Customer satisfied with results.',
-            createdDate: new Date(Date.now() - 259200000).toISOString(),
-            lastUpdated: new Date(Date.now() - 86400000).toISOString()
-        }
-    ];
-
-    surveyManager.surveys = sampleSurveys;
-    surveyManager.saveData();
-}
