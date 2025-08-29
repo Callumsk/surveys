@@ -8,9 +8,26 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Enable CORS for production
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
+});
+
 // Serve static files
 app.use(express.static(path.join(__dirname)));
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Data storage (in production, use a proper database)
 let surveys = [];
@@ -47,8 +64,9 @@ function broadcast(data) {
 }
 
 // WebSocket connection handling
-wss.on('connection', (ws) => {
-    console.log('New client connected');
+wss.on('connection', (ws, req) => {
+    const clientIP = req.socket.remoteAddress;
+    console.log(`New client connected from ${clientIP}`);
     
     // Send current data to new client
     ws.send(JSON.stringify({
@@ -142,7 +160,11 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
-        console.log('Client disconnected');
+        console.log(`Client disconnected from ${clientIP}`);
+    });
+
+    ws.on('error', (error) => {
+        console.error(`WebSocket error from ${clientIP}:`, error);
     });
 });
 
@@ -196,8 +218,38 @@ app.delete('/api/surveys/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// Handle all other routes by serving the main HTML file
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Open http://localhost:${PORT} in your browser`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+server.listen(PORT, HOST, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📱 Local: http://localhost:${PORT}`);
+    console.log(`🌐 Network: http://${HOST}:${PORT}`);
+    console.log(`🔌 WebSocket: ws://${HOST}:${PORT}`);
+    
+    if (process.env.NODE_ENV === 'production') {
+        console.log(`✅ Production mode enabled`);
+    }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
 });
