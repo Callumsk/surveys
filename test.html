@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - ECO4 Survey Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECO4 Survey Management - Test</h1>
+        <button id="addSurveyBtn" class="btn btn-primary">Add New Survey</button>
+        <button id="testBtn" class="btn btn-primary">Test Button</button>
+        
+        <div id="output"></div>
+    </div>
+
+    <!-- Test Modal -->
+    <div id="testModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Test Modal</h2>
+            <p>This is a test modal to verify functionality.</p>
+            <button class="btn btn-primary" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        console.log('Test script starting...');
+        
+        // Test basic functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            
+            // Test button
+            const testBtn = document.getElementById('testBtn');
+            if (testBtn) {
+                testBtn.addEventListener('click', function() {
+                    console.log('Test button clicked!');
+                    document.getElementById('output').innerHTML = '<p>Test button works! ✅</p>';
+                });
+            } else {
+                console.error('Test button not found');
+            }
+            
+            // Add survey button
+            const addBtn = document.getElementById('addSurveyBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', function() {
+                    console.log('Add survey button clicked!');
+                    document.getElementById('testModal').style.display = 'block';
+                });
+            } else {
+                console.error('Add survey button not found');
+            }
+            
+            // Close modal
+            const closeBtn = document.querySelector('.close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    document.getElementById('testModal').style.display = 'none';
+                });
+            }
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(e) {
+                const modal = document.getElementById('testModal');
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+        
+        function closeModal() {
+            document.getElementById('testModal').style.display = 'none';
+        }
+        
+        console.log('Test script loaded');
+    </script>
+</body>
+</html>
